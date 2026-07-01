@@ -3,36 +3,50 @@
 ## Hypothesis
 
 ### Economic rationale
-This codebase deals with pairs trading/cointegration and the possible profit based on it. The "pairs trading" strategy has been popular. The most relevant paper, "Pairs Trading: Performance of a Relative Value Arbitrage Rule", has over 1442 citations. In this codebase, this method will be further evaluated on the following common selection of commodity-linked equities.
+This repository evaluates pairs trading and cointegration strategies, focusing on commodity-linked equities. Pairs trading helps identify relative mispricing by comparing similar securities and exploiting mean-reversion in their spread.
 
-Pairs trading aids in the determination of whether a security is overvalued or undervalued, using relative pricing.
+The strategy is inspired by seminal research such as “Pairs Trading: Performance of a Relative Value Arbitrage Rule.” The codebase tests whether common commodity-sector pairs exhibit stable relationships and practical trading opportunity.
+
+### Selected pair examples
+- **XOM vs CVX** — two large integrated oil majors with similar business models and exposure to crude oil and refining margins.
+- **XLE vs XOP** — XLE is a market-cap-weighted energy sector ETF, while XOP is equal-weighted and concentrated in exploration and production names.
+- **NEM vs GOLD** — Newmont and Barrick are both large gold miners driven by the same underlying gold price.
+- **ADM vs BG** — Archer-Daniels-Midland and Bunge are global agricultural processors/traders exposed to grain and oilseed prices.
 
 ### Statistical hypothesis
-Is there a stable long-term linear relationship between the two price series such that their combination is stationary?
+We test whether the log-price series are cointegrated, meaning a linear combination of the two series is stationary.
 
-Formally:
-Take log prices $p_{A,t} = \ln(P_{A,t})$ and $p_{B,t} = \ln(P_{B,t})$:
+Let:
+- $p_{A,t} = \ln(P_{A,t})$
+- $p_{B,t} = \ln(P_{B,t})$
+
+Then estimate:
 
 $p_{A,t} = \alpha + \beta p_{B,t} + \epsilon_t$
 
 Where $\epsilon_t$ is the spread.
 
-- $H_0$: $\epsilon_t$ is non-stationary (no cointegration present)
-- $H_1$: $\epsilon_t$ is stationary (A and B are cointegrated)
+Hypotheses:
+- $H_0$: $\epsilon_t$ is non-stationary (no cointegration)
+- $H_1$: $\epsilon_t$ is stationary (cointegration exists)
 
-This is going to be tested with the use of the Augmented Dickey-Fuller (ADF) test applied to $\epsilon_t$.
+Test using the Augmented Dickey-Fuller (ADF) regression on $\epsilon_t$:
 
 $\Delta \epsilon_t = \gamma \epsilon_{t-1} + \sum_{i=1}^{k} \theta_i \Delta \epsilon_{t-i} + u_t$
 
-Then, if $\gamma = 0$, $\epsilon_t$ is a random walk and $H_0$ holds. If $\gamma < 0$ and statistically significant, reject $H_0$ and conclude cointegration.
+If $\gamma = 0$, the spread behaves like a random walk and $H_0$ holds. If $\gamma < 0$ and statistically significant, reject $H_0$ and conclude the pair is cointegrated.
 
 ### Trading hypothesis
-Is the reversion exploitable net of costs?
+Assuming the spread is stationary, the mean reversion should be exploitable after transaction costs.
 
-Given $\epsilon_t$ is stationary, its mean-reverting shall be modeled.
+A sample entry rule is:
+- enter on $|z_t| > 2$, where $z_t = \frac{\epsilon_t - \hat{\mu}_{\text{roll}}}{\hat{\sigma}_{\text{roll}}}$
+- exit when $z_t$ reverts toward zero
 
-Given a trading rule that enters when $z_t = \frac{\epsilon_t - \hat{\mu}_{\text{roll}}}{\hat{\sigma}_{\text{roll}}}$ exceeds $\pm 2$ and exits at $z_t \to 0$, the resulting strategy generates a Sharpe ratio $> 0$ that is statistically distinguishable from zero after transaction costs of $c$ bps per round trip, over an out-of-sample period distinct from the estimation window.
+The goal is a strategy with a positive Sharpe ratio that remains statistically significant net of transaction costs over an out-of-sample period.
 
 ### Falsification conditions
 - Out-of-sample Sharpe ratio not statistically distinguishable from zero
-- TBD
+- Hedge ratio $\beta$ unstable across rolling estimation windows
+- Mean-reversion half-life too long relative to trading costs
+- ADF test fails to reject $H_0$ at 5% significance
